@@ -49,7 +49,7 @@ const getPRBase = async () => {
   }
 }
 
-const findBase = async (currentBranch) => {
+const findBase = async () => {
   // if we know there is a PR, find it's base
   if (process.env.CIRCLE_PULL_REQUEST) {
     const prBase = await getPRBase()
@@ -65,19 +65,11 @@ const findBase = async (currentBranch) => {
   }
 
   // we don't know exactly what to compare to here without PR info
-  // so we check if the current state of develop is in the history of our branch
-  // and if it is we base off develop, if not then our branch is behind develop
-  // so we default to master as the most likely option
+  // so we just default to develop since "git merge-base" used in changed-packages
+  // will find where the branches diverged
+  // and since develop should always be fast-forward of master it'll work for any branches off master
 
-  const { stdout: branchesFromDevelop } = await execa('git', ['branch', '--contains', 'develop'])
-  const isDevelop = branchesFromDevelop.includes(currentBranch)
-
-  if (!isDevelop) {
-    // make sure we have master pulled down
-    await fetchBranch('master')
-  }
-
-  return isDevelop ? 'develop' : 'master'
+  return 'develop'
 }
 
 const main = async () => {
