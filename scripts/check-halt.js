@@ -3,7 +3,7 @@ const execa = require('execa')
 const got = require('got')
 const argv = require('minimist')(process.argv.slice(2))
 
-const changedPackages = require('./changed-packages')
+const { getChangedFiles, getChangedPackages } = require('./changed-packages')
 
 const pack = argv._[0]
 
@@ -15,8 +15,26 @@ const skipTests = () => {
   process.exit(1)
 }
 
-const containsBinary = (changes) => {
+const containsBinaryPackage = (changes) => {
   return !!changes.find((name) => name === 'cypress' || name.includes('@packages'))
+}
+
+const containsBinaryOther = async (branch) => {
+  // the files that we want to rerun tests for that exist outside of lerna packages
+  const binaryFiles = [
+    '.node-version',
+    'electron-builder.json',
+    'package.json',
+    'yarn.lock',
+  ]
+
+  const changedFiles = await getChangedFiles(branch)
+
+  return !!changedFiles.find((f) => f.includes('scripts/') || binaryFiles.includes(f))
+}
+
+const fetchBranch = async (branch) => {
+  return execa('git', ['fetch', 'origin', `${branch}:${branch}`])
 }
 
 const getPRBase = async () => {
@@ -39,7 +57,7 @@ const findBase = async (currentBranch) => {
     if (prBase) {
       if (prBase !== 'develop') {
         // pull down pr base branch
-        await execa('git', ['fetch', 'origin', `${prBase}:${prBase}`])
+        await fetchBranch(prBase)
       }
 
       return prBase
@@ -56,7 +74,7 @@ const findBase = async (currentBranch) => {
 
   if (!isDevelop) {
     // make sure we have master pulled down
-    await execa('git', ['fetch', 'origin', 'master:master'])
+    await fetchBranch('master')
   }
 
   return isDevelop ? 'develop' : 'master'
@@ -71,9 +89,9 @@ const main = async () => {
   }
 
   const base = await findBase(currentBranch)
-  const changed = await changedPackages(base)
+  const changed = await getChangedPackages(base)
 
-  if (containsBinary(changed)) {
+  if (containsBinaryPackage(changed) || await containsBinaryOther(base)) {
     console.log(`Binary was changed - all tests run`)
     runTests()
   }

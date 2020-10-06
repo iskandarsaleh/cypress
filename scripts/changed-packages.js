@@ -4,14 +4,19 @@ const path = require('path')
 // lists all packages that have changed from develop
 // and all packages that depend on those
 
-const main = async (base = 'develop', output = false) => {
-  const { stdout: root } = await execa('git', ['rev-parse', '--show-toplevel'])
+const getChangedFiles = async (base) => {
   const { stdout: diff } = await execa('git', ['merge-base', base, 'HEAD'])
   const { stdout: filesChanged } = await execa('git', ['diff', '--name-only', diff])
+
+  return filesChanged.split('\n')
+}
+
+const getChangedPackages = async (base = 'develop', output = false) => {
+  const { stdout: root } = await execa('git', ['rev-parse', '--show-toplevel'])
   const { stdout: depGraph } = await execa('npx', ['lerna', 'la', '--graph'])
   const { stdout: packs } = await execa('npx', ['lerna', 'la', '--json'])
 
-  const files = filesChanged.split('\n')
+  const files = await getChangedFiles(base)
   const packages = JSON.parse(packs)
   const dependencies = JSON.parse(depGraph)
 
@@ -58,7 +63,10 @@ if (require.main === module) {
   const argv = require('minimist')(process.argv.slice(2))
   const base = argv._[0]
 
-  main(base, true)
+  getChangedPackages(base, true)
 }
 
-module.exports = main
+module.exports = {
+  getChangedFiles,
+  getChangedPackages,
+}
