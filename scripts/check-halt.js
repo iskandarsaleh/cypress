@@ -7,6 +7,14 @@ const changedPackages = require('./changed-packages')
 
 const pack = argv._[0]
 
+const runTests = () => {
+  process.exit(0)
+}
+
+const skipTests = () => {
+  process.exit(1)
+}
+
 const containsBinary = (changes) => {
   return !!changes.find((name) => name === 'cypress' || name.includes('@packages'))
 }
@@ -59,7 +67,7 @@ const main = async () => {
 
   if (currentBranch === 'develop' || currentBranch === 'master') {
     console.log(`Currently on ${currentBranch} - all tests run`)
-    process.exit(0)
+    runTests()
   }
 
   const base = await findBase(currentBranch)
@@ -67,21 +75,21 @@ const main = async () => {
 
   if (containsBinary(changed)) {
     console.log(`Binary was changed - all tests run`)
-    process.exit(0)
+    runTests()
   }
 
   if (pack) {
     if (changed.includes(pack)) {
       console.log(`${pack} was changed, tests run`)
-      process.exit(0)
+      runTests()
     }
 
     console.log(`${pack} and the binary are unchanged, so skip tests`)
-    process.exit(1)
+    skipTests()
   }
 
   console.log(`The binary is unchanged, so skip tests`)
-  process.exit(1)
+  skipTests()
 }
 
 main()
