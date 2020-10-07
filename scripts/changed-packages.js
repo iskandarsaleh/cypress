@@ -4,7 +4,7 @@ const path = require('path')
 // lists all packages that have changed from develop
 // and all packages that depend on those
 
-const getChangedFiles = async (base) => {
+const getChangedFiles = async (base = 'develop') => {
   const { stdout: diff } = await execa('git', ['merge-base', base, 'HEAD'])
   const { stdout: filesChanged } = await execa('git', ['diff', '--name-only', diff])
 
